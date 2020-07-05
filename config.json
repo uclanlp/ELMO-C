@@ -1,0 +1,105 @@
+{
+  "dataset":{
+  "batch_size": 64, // when training on multiple GPUs, this can be set much larger
+
+  "name": "one_billion",
+  "train_file_path": "training-monolingual.tokenized.shuffled/",
+  "valid_file_path": "val-monolingual.tokenized.shuffled/",
+  "test_file_path": "heldout-monolingual.tokenized.shuffled/",
+  "dataset_cache_folder": "preprocessed/", // currently not in use
+ 
+  "emb_on_the_fly": false, // whether the embedding is pre-computed
+  "vocabulary_file": "vocab-2016-09-10.txt", // vocabulary file
+  "type":"cc_parallel", // 
+  "num_workers": 3,
+  "pad": false,
+  "bptt": 20
+  },
+
+  "input_layer":{
+    "name": "embedding",
+    "embedding_type": "common_crawl_open",
+    "options": "",
+    "input_size": 300,
+    "embedding_model_path":"crawl-300d-2M-subword.bin",
+    "freeze": true,
+    "dropout": 0.0
+  },
+
+  "rnn_layer":{
+      "name": "elmo",
+      "input_size": 300,
+      "hidden_size": 4096,
+      "num_layers": 2,
+      "dropout": 0.1,
+      "rnn_dropout": 0.1,
+      "highway_bias": 0,
+      "projection_size": 512,
+      "common_crawl_style": false,
+      "reset_hidden_every_time": true, // this option is for SRU and not used for ELMo LSTM
+      
+      "layer_norm": true,
+      "ln_before_act": true,
+      "add_embedding_layer": true,
+  
+      "reset_hidden_state": true,
+      "bidirectional": false, // we separately train the forward and backward LM for less GPU communication cost
+      "custom_elmo": true,
+      "reverse": false // forward LM or backward LM
+    },
+
+  "output_layer":{
+      "name": "semfit", // the continous output layer
+      "embedding_type": "common_crawl_open",
+      "options": "",
+      "embedding_model_path":"crawl-300d-2M-subword.bin", // which open-vocabulary embedding we use
+      "input_size": 512,
+      "output_size": 300,
+      "dropout": 0.0
+    },
+  
+    "loss":{
+      "name": "cosine"
+    },
+  
+    "optimizer":{
+      "name": "scheduled", // when using this optimizer, learning rate is auto-matically scaled according to the batch_size (see parse_config.py)
+      "type": "adam",
+      "decay_ratio": 0.4,
+      "end_decay_ratio": 2.0,
+      "base_ratio": 1.0,
+      "base_scale": 0.0001,
+      "warmup": 10000,
+      "learning_rate": 0.0001 // not in use for "scheduled" optimzer
+    },
+
+
+  "other_stuff":{
+    "log_path": "/local/harold/new_logs/",
+    "models_path": "/local/guojy/harold/main/elmo/",
+    "data_folder": "/local/guojy/harold/main/elmo/data/", // Please change this to your local data folder
+
+    "clip": 1.0,
+    "print_every": 10, // loss report frequency
+
+    "not_parallel_embedding": true, // legacy option, not in use
+    "parallel_rnn_and_last_layer": false, // legacy option, not in use
+
+    "situation": 2, // control how the input layer, RNN, and output layer is parallelled across GPUs. Please see the TrueRunningModel class in source/models/complete_elmo.py for details.
+
+    "continue_train": false, // can continue training from a saved checkpoint
+    "continue_model_name": "",
+
+    "model_name":"test", // model save name
+    
+    "cache_name_for_coref": "", // for caching sentence embeddings for the coref task
+
+    "train_iter": -1, // if > -1, training will stop after "train_iter" iterations. usually stop 
+
+    "check_epoch": 20, // The one-billion-benchmark corpus is splitted into 100 chunks. When we finish training on 1 chunk, we call it one epoch. We will run evaluation after check_epoch chunks are consumed.
+    "check_scale": 1,
+
+    "initialize": true,
+    "reduce_loss": false
+  }
+}
